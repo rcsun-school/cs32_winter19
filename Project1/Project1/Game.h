@@ -1,3 +1,6 @@
+#ifndef GAME_H
+#define GAME_H
+
 class Arena;
 class Game
 {
@@ -12,3 +15,5 @@ public:
 private:
 	Arena* m_arena;
 };
+
+#endif

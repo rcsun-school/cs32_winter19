@@ -1,3 +1,6 @@
+#ifndef ZOMBIE_H
+#define ZOMBIE_H
+
 class Arena;  // This is needed to let the compiler know that Arena is a
 			  // type name, since it's mentioned in the Zombie declaration.
 
@@ -21,3 +24,5 @@ private:
 	int    m_col;
 	int    m_health;
 }; 
+
+#endif

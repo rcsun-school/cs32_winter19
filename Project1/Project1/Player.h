@@ -1,3 +1,6 @@
+#ifndef PLAYER_H
+#define PLAYER_H
+
 class Arena;
 class Player
 {
@@ -23,3 +26,4 @@ private:
 	int    m_age;
 	bool   m_dead;
 }; 
+#endif

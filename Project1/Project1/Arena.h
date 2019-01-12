@@ -1,4 +1,7 @@
 #include "globals.h"
+#ifndef ARENA_H
+#define ARENA_H
+
 class Player;
 class Zombie;
 class Arena
@@ -30,3 +33,5 @@ private:
 	Zombie* m_zombies[MAXZOMBIES];
 	int     m_nZombies;
 }; 
+
+#endif
