@@ -1,9 +1,11 @@
 #include "Arena.h"
 #include "Zombie.h"
 #include "Player.h"
+#include "History.h"
 #include <iostream>
 using namespace std;
 Arena::Arena(int nRows, int nCols)
+	:m_history(nRows, nCols)
 {
 	if (nRows <= 0 || nCols <= 0 || nRows > MAXROWS || nCols > MAXCOLS)
 	{
@@ -165,6 +167,7 @@ bool Arena::attackZombieAt(int r, int c, int dir)
 	}
 	if (k < m_nZombies  &&  m_zombies[k]->getAttacked(dir))  // zombie dies
 	{
+		m_history.record(m_rows, m_cols);
 		delete m_zombies[k];
 		m_zombies[k] = m_zombies[m_nZombies - 1];
 		m_nZombies--;
@@ -185,4 +188,8 @@ bool Arena::moveZombies()
 
 	// return true if the player is still alive, false otherwise
 	return !m_player->isDead();
+}
+
+History& Arena::history() {
+	return this->m_history;
 }
