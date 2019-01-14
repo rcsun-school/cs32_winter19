@@ -75,7 +75,7 @@ void Game::play()
 				return;
 			case 'h':
 				m_arena->history().display();
-				cout << "Press enter to continue." << endl;
+				cout << "Press enter to continue.";
 				cin.ignore(1000, '\n');
 				m_arena->display();
 				continue;

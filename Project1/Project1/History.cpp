@@ -27,18 +27,14 @@ void History::display() const {
 	clearScreen();
 	for (int i = 0; i < m_rows; i++) {
 		for (int j = 0; j < m_cols; j++) {
-			switch (m_grid[i][j]) {
-			case 0:
-				cout << '0';
-				break;
-			default:
-				if (m_grid[i][j] > 25) {
-					cout << 'Z';
-				}
-				else {
-					cout << (char)('A' + m_grid[i][j] - 1);
-				}
+			if (m_grid[i][j] == 0) {
+				cout << '.';
 			}
+			else if (m_grid[i][j] > 0 && m_grid[i][j] <= 25) {
+				cout << (char)('A' - 1 + m_grid[i][j]);
+			}
+			else
+				cout << 'Z';
 		}
 		cout << endl;
 	}

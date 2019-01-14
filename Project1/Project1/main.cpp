@@ -1,6 +1,4 @@
 #include "Game.h"
-
-
 int main()
 {
 	// Create a game
