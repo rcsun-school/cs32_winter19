@@ -2,6 +2,7 @@
 #include "Zombie.h"
 #include "Player.h"
 #include "History.h"
+#include "globals.h"
 #include <iostream>
 using namespace std;
 Arena::Arena(int nRows, int nCols)
@@ -167,7 +168,7 @@ bool Arena::attackZombieAt(int r, int c, int dir)
 	}
 	if (k < m_nZombies  &&  m_zombies[k]->getAttacked(dir))  // zombie dies
 	{
-		m_history.record(m_rows, m_cols);
+		m_history.record(r, c);
 		delete m_zombies[k];
 		m_zombies[k] = m_zombies[m_nZombies - 1];
 		m_nZombies--;

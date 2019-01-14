@@ -32,7 +32,12 @@ void History::display() const {
 				cout << '0';
 				break;
 			default:
-				cout << (char)('A' + m_grid[i][j]);
+				if (m_grid[i][j] > 25) {
+					cout << 'Z';
+				}
+				else {
+					cout << (char)('A' + m_grid[i][j] - 1);
+				}
 			}
 		}
 		cout << endl;
