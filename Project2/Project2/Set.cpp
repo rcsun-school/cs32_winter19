@@ -25,7 +25,7 @@ Set::Set(const Set& other) {
 
 Set::~Set() {
 	Node * p = m_head;
-	while (p != m_head) {
+	while (p != nullptr) {
 		Node * killme = p;
 		p = p->next;
 		delete killme;
@@ -38,7 +38,7 @@ Set& Set::operator=(const Set& other) {
 	}
 	//clear out existing values in receiving set
 	Node * p = m_head;
-	while (p != m_head) {
+	while (p != nullptr) {
 		Node * killme = p;
 		p = p->next;
 		delete killme;
@@ -93,6 +93,7 @@ bool Set::insert(const ItemType& value) {
 		m_head->next = nullptr;
 		m_size++;
 		m_empty = false;
+		m_tail = m_head;
 		return true;
 	}
 			Node * p = new Node;
@@ -141,12 +142,23 @@ bool Set::erase(const ItemType& value) {
 	}
 	if (m_size == 1) {
 		m_head = nullptr;
+		m_tail = m_head;
 		m_empty = true;
+		m_size--;
+		return true;
+	}
+	if (m_head->value == value) {
+		Node * killme = m_head;
+		m_head = m_head->next;
+		delete killme;
 		m_size--;
 		return true;
 	}
 	for (Node * ptr = m_head; ptr->next != nullptr; ptr = ptr->next) {
 		if (ptr->next->value == value) {
+			if (m_tail == ptr) { //update tail if need be
+				m_tail = m_tail->previous; 
+			}
 			Node * killme = ptr->next;
 			ptr->next = killme->next;
 			killme->next->previous = ptr;
@@ -159,6 +171,9 @@ bool Set::erase(const ItemType& value) {
 }
 
 bool Set::contains(const ItemType& value) const {
+	if (m_empty) {
+		return false;
+	}
 	for (Node * ptr = m_head; ptr != nullptr; ptr = ptr->next) { 
 		if (ptr->value == value) {
 			return true;
@@ -182,6 +197,89 @@ bool Set::get(int pos, ItemType& value) const {
 
 void Set::swap(Set& other) {
 	Node * temp = other.m_head;
+	bool temp_empty = other.m_empty;
+	int temp_size = other.size();
 	other.m_head = m_head;
+	other.m_size = m_size;
+	other.m_empty = m_empty;
 	m_head = temp;
+	m_size = temp_size;
+	m_empty = temp_empty;
+
+}
+
+void unite(const Set& s1, const Set& s2, Set& result) {
+	//if result is either s1 or s2
+	if (&result == &s1) {
+		int size = s2.size();
+		for (int i = 0; i < size; i++) {
+			ItemType s;
+			s2.get(i, s);
+			result.insert(s);
+		}
+
+	}
+	else if (&result == &s2) {
+		int size = s1.size();
+		for (int i = 0; i < size; i++) {
+			ItemType s;
+			s1.get(i, s);
+			result.insert(s);
+		}
+	}
+	else {
+		//clean out result if needed
+		if (!result.empty()) {
+			int size = result.size();
+			for (int i = 0; i < size; i++) {
+				ItemType s;
+				result.get(0, s);
+				result.erase(s);
+			}
+		}
+		//result is empty, add values from s1 into result
+		int size = s1.size();
+		for (int i = 0; i < size; i++) {
+			ItemType s;
+			s1.get(i, s);
+			result.insert(s);
+		}
+		size = s2.size();
+		for (int k = 0; k < size; k++) {
+			ItemType s;
+			s2.get(k, s);
+			result.insert(s);
+		}
+	}
+
+}
+
+void subtract(const Set& s1, const Set& s2, Set& result) {
+	if (&result == &s1) {
+		for (int i = 0; i < result.size(); i++) {
+			ItemType s;
+			result.get(i, s);
+			if (s2.contains(s)) {
+				result.erase(s);
+				i--;
+			}
+		}
+	}
+	//clean out result if needed
+	if (!result.empty()) {
+		int size = result.size();
+		for (int i = 0; i < size; i++) {
+			ItemType s;
+			result.get(0, s);
+			result.erase(s);
+		}
+	}
+	int size = s1.size();
+	for (int i = 0; i < size; i++) {
+		ItemType s;
+		s1.get(i, s);
+		if (!s2.contains(s)) {
+			result.insert(s);
+		}
+	}
 }
