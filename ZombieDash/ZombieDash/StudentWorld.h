@@ -17,11 +17,13 @@ public:
     virtual int move();
     virtual void cleanUp();
 	bool canMoveTo(double end_x, double end_y, Actor * character);
-	void determineBounds(double x, double y, double& lx, double& ly, double& rx, double& ry);
+	void checkExit(double curx, double cury);
+	~StudentWorld();
 
 private:
 	std::vector <Actor*> allChar;
 	Penelope * penelope;
+	bool levelFinished;
 };
 
 #endif // STUDENTWORLD_H_

@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 using namespace std;
 
 GameWorld* createStudentWorld(string assetPath)
@@ -15,8 +17,12 @@ GameWorld* createStudentWorld(string assetPath)
 // Students:  Add code to this file, StudentWorld.h, Actor.h and Actor.cpp
 
 StudentWorld::StudentWorld(string assetPath)
-: GameWorld(assetPath)
+: GameWorld(assetPath), levelFinished(false)
 {
+}
+
+StudentWorld::~StudentWorld() {
+	this->cleanUp();
 }
 
 int StudentWorld::init()
@@ -47,6 +53,11 @@ int StudentWorld::init()
 				allChar.push_back(w);
 			}
 			break;
+			case Level::exit: 
+			{
+				Actor * e = new Exit(i * SPRITE_WIDTH, j*SPRITE_HEIGHT, this);
+				allChar.push_back(e);
+			}
 			default:
 				break;
 			}
@@ -60,6 +71,13 @@ int StudentWorld::move()
 {
     // This code is here merely to allow the game to build, run, and terminate after you hit enter.
     // Notice that the return value GWSTATUS_PLAYER_DIED will cause our framework to end the current level.
+	ostringstream oss;
+	oss.fill('0');
+	oss << "Score: " << setw(6) << getScore(); 
+	oss.fill(' ');
+	oss << setw(9) << "Level: " << getLevel() << setw(9) << "Lives: " << getLives() << setw(12) << "Vaccines: " << penelope->getVaccines() << setw(10) << "Flames: " << penelope->getFlame()
+		<< setw(9) << "Mines: " << penelope->getMines() << setw(12) << "Infected: " << penelope->getInfectionCount();
+	setGameStatText(oss.str());
 	vector <Actor*>::iterator it = allChar.begin();
 	for (; it != allChar.end(); it++) {
 		if ((*it)->alive()) {
@@ -68,6 +86,9 @@ int StudentWorld::move()
 		if (!penelope->alive()) {
 			return GWSTATUS_PLAYER_DIED;
 		}
+		if (levelFinished) {
+			return GWSTATUS_FINISHED_LEVEL;
+		}
 	}
 	for (it = allChar.begin(); it != allChar.end(); it++) {
 		if (!((*it)->alive())) {
@@ -75,7 +96,7 @@ int StudentWorld::move()
 			it = allChar.erase(it);
 		}
 	}
-    return GWSTATUS_CONTINUE_GAME;
+	return GWSTATUS_CONTINUE_GAME;
 }
 
 void StudentWorld::cleanUp()
@@ -102,4 +123,16 @@ bool StudentWorld::canMoveTo(double end_x, double end_y, Actor * character) {
 	}
 	return true;
 
+}
+
+void StudentWorld::checkExit(double curx, double cury) {
+	for (vector<Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
+		if ((curx - (*it)->getX()) * (curx - (*it)->getX()) + (cury - (*it)->getY()) * (cury - (*it)->getY()) <= 100) {
+			if ((*it)->canBeSaved()) {
+				if ((*it) == this->penelope) {
+					levelFinished = true;
+				}
+			}
+		}
+	}
 }
