@@ -21,10 +21,14 @@ public:
 	}
 	bool canMoveTo(double end_x, double end_y, Actor * character);
 	void checkExit(double curx, double cury);
-	void hazardOverlap(double curx, double cury);
-	bool goodieOverlap(double curx, double cury);
+	void hazardOverlap(double curx, double cury, Actor * caller);
+	bool goodieOverlap(double curx, double cury, Actor * caller);
+	bool mineOverlap(double curx, double cury, Actor * caller);
+	bool overlap(double curx, double cury, Actor * caller, Actor * it);
 	bool overlap(double curx, double cury, Actor * it);
 	void generateFlames(double x, double y);
+	void generateLandmine(double x, double y);
+	void generatePit(double x, double y);
 	~StudentWorld();
 
 private:
@@ -32,6 +36,7 @@ private:
 	std::vector <Actor *> newChar;
 	Penelope * penelope;
 	bool levelFinished;
+	int level;
 };
 
 #endif // STUDENTWORLD_H_

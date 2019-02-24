@@ -18,7 +18,7 @@ GameWorld* createStudentWorld(string assetPath)
 // Students:  Add code to this file, StudentWorld.h, Actor.h and Actor.cpp
 
 StudentWorld::StudentWorld(string assetPath)
-: GameWorld(assetPath), levelFinished(false){
+: GameWorld(assetPath), levelFinished(false), level(1){
 }
 
 StudentWorld::~StudentWorld() {
@@ -36,7 +36,7 @@ int StudentWorld::init()
 	levelFinished = false;
 	//filename.fill('0');
 	//filename << "level" << setw(2) << getLevel() << ".txt";
-	string filename = "level02.txt";
+	string filename = "level04.txt";
 	Level lev(assetPath());
 	Level::LoadResult result = lev.loadLevel(filename);
 		for (int i = 0; i < LEVEL_WIDTH; i++) {
@@ -82,6 +82,12 @@ int StudentWorld::init()
 				allChar.push_back(l);
 			}
 			break;
+			case Level::pit: 
+			{
+				Actor * p = new Pit(i * SPRITE_WIDTH, j * SPRITE_HEIGHT, this);
+				allChar.push_back(p);
+			}
+			break;
 			default:
 				break;
 			}
@@ -104,7 +110,7 @@ int StudentWorld::move()
 	setGameStatText(oss.str());
 	vector <Actor*>::iterator it = allChar.begin();
 	for (; it != allChar.end(); it++) {
-		if ((*it)->alive()) {
+		if ((*it)->alive()) { //checks if actor is alive before calling doSomething()
 			(*it)->doSomething();
 		}
 		if (!penelope->alive()) {
@@ -136,6 +142,13 @@ void StudentWorld::cleanUp()
 		Actor * killme = *i;
 		i = allChar.erase(i);
 		delete killme;
+	}
+
+	if (levelFinished) {
+		level++;
+	}
+	else {
+		decLives();
 	}
 }
 
@@ -169,25 +182,42 @@ void StudentWorld::checkExit(double curx, double cury) {
 	}
 }
 
+bool StudentWorld::overlap(double curx, double cury, Actor * caller, Actor * it) {
+	if (caller == it) {
+		return false;
+	}
+	return ((curx - it->getX()) * (curx - it->getX()) + (cury - it->getY()) * (cury - it->getY()) <= 100);
+}
+
 bool StudentWorld::overlap(double curx, double cury, Actor * it) {
 	return ((curx - it->getX()) * (curx - it->getX()) + (cury - it->getY()) * (cury - it->getY()) <= 100);
 }
 
 
-void StudentWorld::hazardOverlap(double curx, double cury) {
+void StudentWorld::hazardOverlap(double curx, double cury, Actor * caller) {
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
-		if (overlap(curx, cury, *it) && (*it)->isKillable()) {
+		if (overlap(curx, cury, caller, *it) && (*it)->isKillable()) {
 			(*it)->die();
 		}
 	}
 }
 
 
-bool StudentWorld::goodieOverlap(double curx, double cury) {
+bool StudentWorld::goodieOverlap(double curx, double cury, Actor * caller) {
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
-		if (overlap(curx, cury, *it) && *it == penelope) {
+		if (overlap(curx, cury, caller, *it) && *it == penelope) {
 			increaseScore(50);
 			playSound(SOUND_GOT_GOODIE);
+			return true;
+		}
+	}
+	return false;
+}
+
+
+bool StudentWorld::mineOverlap(double curx, double cury, Actor * caller) {
+	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
+		if (overlap(curx, cury, caller, *it)) {
 			return true;
 		}
 	}
@@ -202,4 +232,14 @@ void StudentWorld::generateFlames(double x, double y) {
 	}
 	Actor * f = new Flame(x, y, this);
 	newChar.push_back(f);
+}
+
+void StudentWorld::generateLandmine(double x, double y) {
+	Actor * l = new Landmine(x, y, this);
+	newChar.push_back(l);
+}
+
+void StudentWorld::generatePit(double x, double y) {
+	Actor * p = new Pit(x, y, this);
+	newChar.push_back(p);
 }

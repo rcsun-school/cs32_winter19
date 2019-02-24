@@ -18,6 +18,9 @@ public:
 	virtual bool canBeSaved() const;
 	virtual bool isKillable() const;
 	virtual bool zombieFood() const;
+	virtual void activateByFlame() {
+		return;
+	}
 	virtual int die();
 	virtual int beSaved();
 	virtual bool canBlockFlames() {
@@ -97,13 +100,13 @@ public:
 		return false;
 	}
 	bool isKillable() const {
-		return true;
+		return false;
 	}
 	StudentWorld * getArena() {
 		return m_arena;
 	}
 	bool timeUp() {
-		if (timer == 2) {
+		if (timer >= 2) {
 			die();
 			return true;
 		}
@@ -112,11 +115,21 @@ public:
 			return false;
 		}
 	}
+	virtual bool canBlockFlames() {
+		return false;
+	}
+	int getTimer() const {
+		return timer;
+	}
+	void incTimer() {
+		timer++;
+	}
 
 private:
 	bool isAlive;
 	StudentWorld * m_arena;
 	int timer;
+	int lifespan;
 
 };
 
@@ -133,6 +146,13 @@ public:
 	~Landmine() {};
 	void doSomething();
 	void BOOM();
+	void activateByFlame() {
+		BOOM();
+	}
+	void activate();
+private:
+	bool isActive;
+	int safetyTicks;
 };
 
 
@@ -148,6 +168,9 @@ public:
 	Pit(double startX, double startY, StudentWorld * arena);
 	~Pit() {};
 	void doSomething();
+	bool canBlockFlames() {
+		return true;
+	}
 };
 
 class Goodie : public Actor {
@@ -203,7 +226,7 @@ public:
 		return vaccineCount;
 	}
 	void plusFlame() {
-		flameCount += 3;
+		flameCount += 5;
 	}
 	void plusMines() {
 		mineCount += 2;
@@ -216,7 +239,6 @@ public:
 		Actor::die();
 		return 0;
 	}
-	void shootFire();
 private:
 	int flameCount;
 	int mineCount;

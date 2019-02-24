@@ -103,29 +103,28 @@ void Penelope::doSomething() {
 			switch (key_value) {
 			case KEY_PRESS_RIGHT:
 				this->setDirection(0);
-				if (m_arena->canMoveTo(getX() + 1, getY(), this)) {
-					this->moveTo(this->getX() + 1, this->getY());
+				if (m_arena->canMoveTo(getX() + 4, getY(), this)) {
+					this->moveTo(this->getX() + 4, this->getY());
 				}
 				break;
 			case KEY_PRESS_UP:
 				this->setDirection(90);
-				if (m_arena->canMoveTo(getX(), getY() + 1, this)) {
-					this->moveTo(this->getX(), this->getY() + 1);
+				if (m_arena->canMoveTo(getX(), getY() + 4, this)) {
+					this->moveTo(this->getX(), this->getY() + 4);
 				}
 				break;
 			case KEY_PRESS_LEFT:
 				this->setDirection(180);
-				if (m_arena->canMoveTo(getX() - 1, getY(), this)) {
-					this->moveTo(this->getX() - 1, this->getY());
+				if (m_arena->canMoveTo(getX() - 4, getY(), this)) {
+					this->moveTo(this->getX() - 4, this->getY());
 				}
 				break;
 			case KEY_PRESS_DOWN:
 				this->setDirection(270);
-				if (m_arena->canMoveTo(getX(), getY() - 1, this)) {
-					this->moveTo(this->getX(), this->getY() - 1);
-					break;
-
+				if (m_arena->canMoveTo(getX(), getY() - 4, this)) {
+					this->moveTo(this->getX(), this->getY() - 4);
 				}
+				break;
 			case KEY_PRESS_SPACE:
 				if (flameCount <= 0) {
 					break;
@@ -166,6 +165,14 @@ void Penelope::doSomething() {
 					}
 					break;
 				}
+				break;
+			case KEY_PRESS_TAB: {
+				if (mineCount <= 0) {
+					break;
+				}
+				m_arena->generateLandmine(getX(), getY());
+				mineCount--;
+			}
 				
 
 			}
@@ -227,7 +234,7 @@ VaccineGoodie::VaccineGoodie(double startX, double startY, StudentWorld * arena)
 }
 
 void VaccineGoodie::doSomething() {
-	if (getArena()->goodieOverlap(this->getX(), this->getY())) {
+	if (getArena()->goodieOverlap(this->getX(), this->getY(), this)) {
 		getArena()->getPenelope()->plusVaccine();
 		die();
 	}
@@ -238,7 +245,7 @@ GasCanGoodie::GasCanGoodie(double startX, double startY, StudentWorld * arena) :
 }
 
 void GasCanGoodie::doSomething() {
-	if (getArena()->goodieOverlap(getX(), getY())) {
+	if (getArena()->goodieOverlap(getX(), getY(), this)) {
 		getArena()->getPenelope()->plusFlame();
 		die();
 	}
@@ -249,7 +256,7 @@ LandmineGoodie::LandmineGoodie(double startX, double startY, StudentWorld * aren
 }
 
 void LandmineGoodie::doSomething() {
-	if (getArena()->goodieOverlap(getX(), getY())) {
+	if (getArena()->goodieOverlap(getX(), getY(), this)) {
 		getArena()->getPenelope()->plusMines();
 		die();
 	}
@@ -270,6 +277,49 @@ void Flame::doSomething() {
 		return;
 	}
 	else {
-		getArena()->hazardOverlap(getX(), getY());
+		getArena()->hazardOverlap(getX(), getY() , this);
 	}
+}
+
+Pit::Pit(double startX, double startY, StudentWorld * arena) : Hazard(IID_PIT, startX, startY, arena) {
+
+}
+
+void Pit::doSomething() {
+	getArena()->hazardOverlap(getX(), getY(), this);
+}
+
+Landmine::Landmine(double startX, double startY, StudentWorld * arena) : Hazard(IID_LANDMINE, startX, startY, arena) {
+	isActive = false;
+	safetyTicks = 30;
+}
+
+void Landmine::BOOM() {
+	getArena()->playSound(SOUND_LANDMINE_EXPLODE);
+	for (double i = getX() - SPRITE_WIDTH; i <= getX() + SPRITE_WIDTH; i+= SPRITE_WIDTH) {
+		for (double j = getY() - SPRITE_HEIGHT; j <= getY() + SPRITE_HEIGHT; j += SPRITE_HEIGHT) {
+			getArena()->generateFlames(i * SPRITE_HEIGHT, j * SPRITE_HEIGHT);
+		}
+	}
+	getArena()->generatePit(getX(), getY());
+	die();
+}
+
+void Landmine::activate() {
+	if (safetyTicks > 0) {
+		safetyTicks--;
+	}
+	if (safetyTicks <= 0) {
+		isActive = true;
+	}
+}
+void Landmine::doSomething() {
+	activate();
+	if (!isActive) {
+		return;
+	}
+	if (getArena()->mineOverlap(getX(), getY(), this)) {
+		BOOM();
+	}
+
 }
