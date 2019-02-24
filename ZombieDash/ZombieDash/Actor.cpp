@@ -17,24 +17,33 @@ bool Actor::isTangible() const {
 bool Actor::canBeSaved() const {
 	return false;
 }
-
-bool Actor::alive() const {
-	return isAlive;
-}
-bool Actor::isFlammable() const {
+bool Actor::isKillable() const {
 	return false;
 }
 
 bool Actor::zombieFood() const {
 	return false;
 }
-Person::Person(int imageID, double startX, double startY, Direction dir, int depth) : Actor(imageID, startX, startY, dir, depth) {
+
+int Actor::die() {
+	isAlive = false;
+	return 0;
+}
+
+int Actor::beSaved() {
+	return 0;
+}
+Person::Person(int imageID, double startX, double startY, int points_saved, int points_killed) : Actor(imageID, startX, startY) {
+	isInfected = false;
+	infectionCount = 0;
+	POINT_VALUE_SAVED = points_saved;
+	POINT_VALUE_KILLED = points_killed;
 }
 
 Person::~Person() {
 }
 
-bool Person::isFlammable() const {
+bool Person::isKillable() const {
 	return true;
 }
 
@@ -54,27 +63,23 @@ bool Person::infected() const {
 int Person::getInfectionCount() const {
 	return infectionCount;
 }
-Zombie::Zombie(double startX, double startY, Direction dir, int depth) : Actor(IID_ZOMBIE, startX, startY, dir, depth) {
-
+Zombie::Zombie(double startX, double startY, int points_killed) : Actor(IID_ZOMBIE, startX, startY) {
+	POINT_VALUE_KILLED = points_killed;
+	isAlive = true;
 }
 
 Zombie::~Zombie() {
 
 }
 
-bool Zombie::isFlammable() const {
-	return true;
-}
 
 void Zombie::vomit() {
 
 }
 
 
-Penelope::Penelope(double start_x, double start_y, StudentWorld * arena) : Person(IID_PLAYER, start_x, start_y) {
+Penelope::Penelope(double start_x, double start_y, StudentWorld * arena) : Person(IID_PLAYER, start_x, start_y, 0, 0) {
 	m_arena = arena;
-	isInfected = false;
-	infectionCount = 0;
 	flameCount = 0;
 	mineCount = 0;
 	vaccineCount = 0;
@@ -85,11 +90,10 @@ void Penelope::doSomething() {
 	if (!alive()) {
 		return;
 	}
-	if (isInfected) {
-		infectionCount++;
-		if (infectionCount >= 500) {
-			isAlive = false;
-			m_arena->playSound(SOUND_PLAYER_DIE);
+	if (infected()) {
+		increaseInfection();
+		if (getInfectionCount() >= 500) {
+			die();
 			//game must play player die sound & student world should detect dead
 			return;
 		}
@@ -122,42 +126,63 @@ void Penelope::doSomething() {
 					break;
 
 				}
+			case KEY_PRESS_SPACE:
+				if (flameCount <= 0) {
+					break;
+				}
+				flameCount--;
+				m_arena->playSound(SOUND_PLAYER_FIRE);
+				switch (getDirection()) {
+				case right:
+					for (int i = 1; i < 4; i++) {
+						if (getX() + i * SPRITE_WIDTH >= VIEW_WIDTH) {
+							break;
+						}
+						m_arena->generateFlames(getX() + i * SPRITE_WIDTH, getY());
+					}
+					break;
+				case up:
+					for (int i = 1; i < 4; i++) {
+						if (getY() + i * SPRITE_HEIGHT >= VIEW_HEIGHT) {
+							break;
+						}
+						m_arena->generateFlames(getX(), getY() + i * SPRITE_HEIGHT);
+					}
+					break;
+				case left:
+					for (int i = 1; i < 4; i++) {
+						if (getX() - i * SPRITE_WIDTH < 0) {
+							break;
+						}
+						m_arena->generateFlames(getX() - i * SPRITE_WIDTH, getY());
+					}
+					break;
+				case down:
+					for (int i = 1; i < 4; i++) {
+						if (getY() - i * SPRITE_HEIGHT < 0) {
+							break;
+						}
+						m_arena->generateFlames(getX(), getY() - i * SPRITE_HEIGHT);
+					}
+					break;
+				}
+				
 
 			}
 		}
 }
 
 
-int Penelope::getFlame() const {
-	return flameCount;
-}
 
-int Penelope::getMines() const {
-	return mineCount;
-}
 
-int Penelope::getVaccines() const {
-	return vaccineCount;
-}
+
+
+
 Penelope::~Penelope() {
 }
 
-bool Penelope::alive() const {
-	return isAlive;
-}
 
-int Penelope::die() {
-	isAlive = false;
-	return 0;
-}
 
-int Penelope::getInfectionCount() const{
-	return infectionCount;
-}
-
-bool Penelope::infected() const {
-	return isInfected;
-}
 
 Wall::Wall(double start_x, double start_y): Actor(IID_WALL, start_x, start_y) {
 
@@ -167,16 +192,10 @@ void Wall::doSomething() {
 	return;
 }
 
-bool Wall::alive() const {
-	return true;
-}
 
 Wall::~Wall() {
 }
 
-bool Wall::isFlammable() const {
-	return false;
-}
 
 
 
@@ -192,18 +211,65 @@ void Exit::doSomething() {
 	m_arena->checkExit(this->getX(), this->getY());
 }
 
-bool Exit::alive() const {
-	return true;
-}
 
-Exit::~Exit() {
-
-}
+Exit::~Exit() {}
 
 bool Exit::isTangible() const {
 	return false;
 }
 
-bool Exit::isFlammable() const {
-	return false;
+Goodie::Goodie(int imageID, double startX, double startY, StudentWorld * arena, Direction dir, int depth): Actor(imageID, startX, startY, dir, depth) {
+	m_arena = arena;
+}
+
+VaccineGoodie::VaccineGoodie(double startX, double startY, StudentWorld * arena) : Goodie(IID_VACCINE_GOODIE, startX, startY, arena){
+
+}
+
+void VaccineGoodie::doSomething() {
+	if (getArena()->goodieOverlap(this->getX(), this->getY())) {
+		getArena()->getPenelope()->plusVaccine();
+		die();
+	}
+}
+
+GasCanGoodie::GasCanGoodie(double startX, double startY, StudentWorld * arena) : Goodie(IID_GAS_CAN_GOODIE, startX, startY, arena) {
+
+}
+
+void GasCanGoodie::doSomething() {
+	if (getArena()->goodieOverlap(getX(), getY())) {
+		getArena()->getPenelope()->plusFlame();
+		die();
+	}
+}
+
+LandmineGoodie::LandmineGoodie(double startX, double startY, StudentWorld * arena) : Goodie(IID_LANDMINE_GOODIE, startX, startY, arena) {
+	
+}
+
+void LandmineGoodie::doSomething() {
+	if (getArena()->goodieOverlap(getX(), getY())) {
+		getArena()->getPenelope()->plusMines();
+		die();
+	}
+}
+
+
+Hazard::Hazard(int imageID, double startX, double startY, StudentWorld * arena) : Actor(imageID, startX, startY) {
+	m_arena = arena;
+	timer = 0;
+}
+
+Flame::Flame(double startX, double startY, StudentWorld * arena) : Hazard(IID_FLAME, startX, startY, arena) {
+
+}
+
+void Flame::doSomething() {
+	if (timeUp()) {
+		return;
+	}
+	else {
+		getArena()->hazardOverlap(getX(), getY());
+	}
 }

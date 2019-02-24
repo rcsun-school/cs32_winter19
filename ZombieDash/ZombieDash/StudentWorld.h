@@ -16,12 +16,20 @@ public:
     virtual int init();
     virtual int move();
     virtual void cleanUp();
+	Penelope * getPenelope() {
+		return penelope;
+	}
 	bool canMoveTo(double end_x, double end_y, Actor * character);
 	void checkExit(double curx, double cury);
+	void hazardOverlap(double curx, double cury);
+	bool goodieOverlap(double curx, double cury);
+	bool overlap(double curx, double cury, Actor * it);
+	void generateFlames(double x, double y);
 	~StudentWorld();
 
 private:
 	std::vector <Actor*> allChar;
+	std::vector <Actor *> newChar;
 	Penelope * penelope;
 	bool levelFinished;
 };

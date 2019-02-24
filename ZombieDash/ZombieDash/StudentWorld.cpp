@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <cassert>
 using namespace std;
 
 GameWorld* createStudentWorld(string assetPath)
@@ -17,8 +18,7 @@ GameWorld* createStudentWorld(string assetPath)
 // Students:  Add code to this file, StudentWorld.h, Actor.h and Actor.cpp
 
 StudentWorld::StudentWorld(string assetPath)
-: GameWorld(assetPath), levelFinished(false)
-{
+: GameWorld(assetPath), levelFinished(false){
 }
 
 StudentWorld::~StudentWorld() {
@@ -32,9 +32,13 @@ int StudentWorld::init()
 		current level’s data file.
 		3. Allocate and insert various wall, pit, goodie, zombie, and exit objects into the
 		game world as specified in the current level’s data file. */
+	//ostringstream filename;
+	levelFinished = false;
+	//filename.fill('0');
+	//filename << "level" << setw(2) << getLevel() << ".txt";
+	string filename = "level02.txt";
 	Level lev(assetPath());
-	string levelFile = "level01.txt";
-	Level::LoadResult result = lev.loadLevel(levelFile);
+	Level::LoadResult result = lev.loadLevel(filename);
 		for (int i = 0; i < LEVEL_WIDTH; i++) {
 		for (int j = 0; j < LEVEL_HEIGHT; j++) {
 			switch (lev.getContentsOf(i, j)) {
@@ -57,7 +61,27 @@ int StudentWorld::init()
 			{
 				Actor * e = new Exit(i * SPRITE_WIDTH, j*SPRITE_HEIGHT, this);
 				allChar.push_back(e);
+
 			}
+			break;
+			case Level::vaccine_goodie:
+			{
+				Actor * v = new VaccineGoodie(i * SPRITE_WIDTH, j*SPRITE_HEIGHT, this);
+				allChar.push_back(v);
+			}
+			break;
+			case Level::gas_can_goodie:
+			{
+				Actor * g = new GasCanGoodie(i * SPRITE_WIDTH, j * SPRITE_HEIGHT, this);
+				allChar.push_back(g);
+			}
+			break;
+			case Level::landmine_goodie: 
+			{
+				Actor * l = new LandmineGoodie(i * SPRITE_WIDTH, j * SPRITE_HEIGHT, this);
+				allChar.push_back(l);
+			}
+			break;
 			default:
 				break;
 			}
@@ -90,10 +114,16 @@ int StudentWorld::move()
 			return GWSTATUS_FINISHED_LEVEL;
 		}
 	}
-	for (it = allChar.begin(); it != allChar.end(); it++) {
+		for (vector<Actor*>::iterator n = newChar.begin(); n != newChar.end();) {
+			allChar.push_back(*n);
+			n = newChar.erase(n);
+		}
+		for (it = allChar.begin(); it != allChar.end(); it++) {
 		if (!((*it)->alive())) {
-			delete &it;
+			Actor * killme = *it;
 			it = allChar.erase(it);
+			delete killme;
+			it--;
 		}
 	}
 	return GWSTATUS_CONTINUE_GAME;
@@ -101,9 +131,11 @@ int StudentWorld::move()
 
 void StudentWorld::cleanUp()
 {
-	for (vector <Actor*>::iterator i = allChar.begin(); i != allChar.end(); i++) {
-		delete &i;
+	vector <Actor*>::iterator i = allChar.begin();
+	while (!allChar.empty()) {
+		Actor * killme = *i;
 		i = allChar.erase(i);
+		delete killme;
 	}
 }
 
@@ -127,7 +159,7 @@ bool StudentWorld::canMoveTo(double end_x, double end_y, Actor * character) {
 
 void StudentWorld::checkExit(double curx, double cury) {
 	for (vector<Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
-		if ((curx - (*it)->getX()) * (curx - (*it)->getX()) + (cury - (*it)->getY()) * (cury - (*it)->getY()) <= 100) {
+		if (overlap(curx, cury, *it)) {
 			if ((*it)->canBeSaved()) {
 				if ((*it) == this->penelope) {
 					levelFinished = true;
@@ -135,4 +167,39 @@ void StudentWorld::checkExit(double curx, double cury) {
 			}
 		}
 	}
+}
+
+bool StudentWorld::overlap(double curx, double cury, Actor * it) {
+	return ((curx - it->getX()) * (curx - it->getX()) + (cury - it->getY()) * (cury - it->getY()) <= 100);
+}
+
+
+void StudentWorld::hazardOverlap(double curx, double cury) {
+	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
+		if (overlap(curx, cury, *it) && (*it)->isKillable()) {
+			(*it)->die();
+		}
+	}
+}
+
+
+bool StudentWorld::goodieOverlap(double curx, double cury) {
+	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
+		if (overlap(curx, cury, *it) && *it == penelope) {
+			increaseScore(50);
+			playSound(SOUND_GOT_GOODIE);
+			return true;
+		}
+	}
+	return false;
+}
+
+void StudentWorld::generateFlames(double x, double y) {
+	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
+		if (overlap(x, y, *it) && (*it)->canBlockFlames()) {
+			return;
+		}
+	}
+	Actor * f = new Flame(x, y, this);
+	newChar.push_back(f);
 }
