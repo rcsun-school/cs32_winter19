@@ -1,9 +1,12 @@
 #include "Actor.h"
 #include "StudentWorld.h"
+#include <cmath>
 // Students:  Add code to this file, Actor.h, StudentWorld.h, and StudentWorld.cpp
 
-Actor::Actor(int imageID, double startX, double startY, Direction dir, int depth): GraphObject(imageID, startX, startY, dir , depth){
+Actor::Actor(int imageID, double startX, double startY, StudentWorld * arena, Direction dir, int depth): GraphObject(imageID, startX, startY, dir , depth){
 	isAlive = true;
+	m_infected = false;
+	m_arena = arena;
 }
 
 Actor::~Actor() {
@@ -25,19 +28,67 @@ bool Actor::zombieFood() const {
 	return false;
 }
 
-int Actor::die() {
+void Actor::die() {
 	isAlive = false;
-	return 0;
+	return;
 }
 
 int Actor::beSaved() {
 	return 0;
 }
-Person::Person(int imageID, double startX, double startY, int points_saved, int points_killed) : Actor(imageID, startX, startY) {
-	isInfected = false;
+
+ 
+Agent::Agent(int imageID, double startX, double startY, StudentWorld * arena, int points_killed, int moveSize) : Actor(imageID, startX, startY, arena), time(0) {
+	POINT_VALUE_KILLED = points_killed;
+	moveSpace = moveSize;
+}
+
+bool Agent::move(Direction dir) {
+	setDirection(dir);
+	switch (dir) {
+	case right:
+		if (getArena()->canMoveTo(getX() + moveSpace, getY(), this)) {
+			moveTo(getX() + moveSpace, getY());
+			return true;
+		}
+		else {
+			return false;
+		}
+		break;
+	case up: 
+		if (getArena()->canMoveTo(getX(), getY() + moveSpace, this)) {
+			moveTo(getX(), getY() + moveSpace);
+			return true;
+		}
+		else {
+			return false;
+		}
+		break;
+	case left: 
+		if (getArena()->canMoveTo(getX() - moveSpace, getY(), this)) {
+			moveTo(getX() - moveSpace, getY());
+			return true;
+		}
+		else {
+			return false;
+		}
+		break;
+	case down:
+		if (getArena()->canMoveTo(getX(), getY() - moveSpace, this)) {
+			moveTo(getX(), getY() - moveSpace);
+			return true;
+		}
+		else {
+			return false;
+		}
+		break;
+	}
+	return false;
+	
+}
+Person::Person(int imageID, double startX, double startY, StudentWorld * arena, int points_saved, int points_killed , int moveSpace) : Agent(imageID, startX, startY, arena, points_killed, moveSpace) {
 	infectionCount = 0;
 	POINT_VALUE_SAVED = points_saved;
-	POINT_VALUE_KILLED = points_killed;
 }
 
 Person::~Person() {
@@ -56,16 +107,11 @@ bool Person::zombieFood() const {
 }
 
 
-bool Person::infected() const {
-	return isInfected;
-}
-
 int Person::getInfectionCount() const {
 	return infectionCount;
 }
-Zombie::Zombie(double startX, double startY, int points_killed) : Actor(IID_ZOMBIE, startX, startY) {
-	POINT_VALUE_KILLED = points_killed;
-	isAlive = true;
+Zombie::Zombie(double startX, double startY, int points_killed, StudentWorld * arena) : Agent(IID_ZOMBIE, startX, startY, arena, points_killed, 1) {
+	m_move = 0;
 }
 
 Zombie::~Zombie() {
@@ -73,13 +119,113 @@ Zombie::~Zombie() {
 }
 
 
-void Zombie::vomit() {
+bool Zombie::vomit() {
+	switch (getDirection()) {
+	case right:
+	{
+		if (getArena()->findCitizens(getX() + SPRITE_WIDTH, getY(), this)) {
+			return true;
+		}
+		break;
+	}
+	case up:
+		if (getArena()->findCitizens(getX(), getY() + SPRITE_HEIGHT, this)) {
+			return true;
+		}
+		break;
+		{
 
+		}
+	case left:
+	{
+		if (getArena()->findCitizens(getX() - SPRITE_WIDTH, getY(), this)) {
+			return true;
+		}
+		break;
+	}
+	case down:
+	{
+		if (getArena()->findCitizens(getX(), getY() + SPRITE_HEIGHT, this)) {
+			return true;
+		}
+		break;
+	}
+	default:
+		return false;
+	}
 }
 
 
-Penelope::Penelope(double start_x, double start_y, StudentWorld * arena) : Person(IID_PLAYER, start_x, start_y, 0, 0) {
-	m_arena = arena;
+
+void DumbZombie::doSomething() {
+	if (paralyzed()) {
+		return;
+	}
+	if (vomit()) {
+		return;
+	}
+	
+	if (getMovementPlan() == 0) {
+		setMovementPlan(randInt(3, 10));
+		setDirection(90 * randInt(0, 3));
+	}
+	if (move(getDirection())) {
+		return;
+	}
+	else {
+		setMovementPlan(0);
+		return;
+	}
+}
+
+void SmartZombie::doSomething() {
+	if (paralyzed()) {
+		return;
+	}
+	if (vomit()) {
+		return;
+	}
+	if (getMovementPlan() == 0) {
+		setMovementPlan(randInt(3, 10));
+		if (getArena()->goAfterHumanIfApplicable(this, getX(), getY())) {
+			return;
+		}
+		else {
+			setDirection(90 * randInt(0, 3));
+		}
+	}
+	if (move(getDirection())) {
+		return;
+	}
+	else {
+		setMovementPlan(0);
+	}
+
+}
+Citizen::Citizen(double startX, double startY, StudentWorld * arena): Person(IID_CITIZEN, startX, startY, arena, 500, -1000, 2) {
+	
+}
+
+void Citizen::doSomething() {
+	if (checkInfection()) {
+		getArena()->generateZombie(getX(), getY());
+		die();
+		return;
+	}
+	if (paralyzed()) {
+		return;
+		}
+	getArena()->moveCitizen(this);
+
+}
+
+void Citizen::die() {
+	getArena()->playSound(SOUND_CITIZEN_DIE);
+	getArena()->decCitizens();
+	Agent::die();
+}
+
+Penelope::Penelope(double start_x, double start_y, StudentWorld * arena) : Person(IID_PLAYER, start_x, start_y, arena, 0, 0, 4) {
 	flameCount = 0;
 	mineCount = 0;
 	vaccineCount = 0;
@@ -87,57 +233,39 @@ Penelope::Penelope(double start_x, double start_y, StudentWorld * arena) : Perso
 }
 
 void Penelope::doSomething() {
-	if (!alive()) {
-		return;
-	}
-	if (infected()) {
-		increaseInfection();
-		if (getInfectionCount() >= 500) {
+		if (checkInfection()) {
 			die();
 			//game must play player die sound & student world should detect dead
 			return;
 		}
-	}
 		int key_value;
-		if (m_arena->getKey(key_value)) {
+		if (getArena()->getKey(key_value)) {
 			switch (key_value) {
 			case KEY_PRESS_RIGHT:
-				this->setDirection(0);
-				if (m_arena->canMoveTo(getX() + 4, getY(), this)) {
-					this->moveTo(this->getX() + 4, this->getY());
-				}
+				Agent::move(right);
 				break;
 			case KEY_PRESS_UP:
-				this->setDirection(90);
-				if (m_arena->canMoveTo(getX(), getY() + 4, this)) {
-					this->moveTo(this->getX(), this->getY() + 4);
-				}
+				Agent::move(up);
 				break;
 			case KEY_PRESS_LEFT:
-				this->setDirection(180);
-				if (m_arena->canMoveTo(getX() - 4, getY(), this)) {
-					this->moveTo(this->getX() - 4, this->getY());
-				}
+				Agent::move(left);
 				break;
 			case KEY_PRESS_DOWN:
-				this->setDirection(270);
-				if (m_arena->canMoveTo(getX(), getY() - 4, this)) {
-					this->moveTo(this->getX(), this->getY() - 4);
-				}
+				Agent::move(down);
 				break;
 			case KEY_PRESS_SPACE:
 				if (flameCount <= 0) {
 					break;
 				}
 				flameCount--;
-				m_arena->playSound(SOUND_PLAYER_FIRE);
+				getArena()->playSound(SOUND_PLAYER_FIRE);
 				switch (getDirection()) {
 				case right:
 					for (int i = 1; i < 4; i++) {
 						if (getX() + i * SPRITE_WIDTH >= VIEW_WIDTH) {
 							break;
 						}
-						m_arena->generateFlames(getX() + i * SPRITE_WIDTH, getY());
+						getArena()->generateFlames(getX() + i * SPRITE_WIDTH, getY(), getDirection());
 					}
 					break;
 				case up:
@@ -145,7 +273,7 @@ void Penelope::doSomething() {
 						if (getY() + i * SPRITE_HEIGHT >= VIEW_HEIGHT) {
 							break;
 						}
-						m_arena->generateFlames(getX(), getY() + i * SPRITE_HEIGHT);
+						getArena()->generateFlames(getX(), getY() + i * SPRITE_HEIGHT, getDirection());
 					}
 					break;
 				case left:
@@ -153,7 +281,7 @@ void Penelope::doSomething() {
 						if (getX() - i * SPRITE_WIDTH < 0) {
 							break;
 						}
-						m_arena->generateFlames(getX() - i * SPRITE_WIDTH, getY());
+						getArena()->generateFlames(getX() - i * SPRITE_WIDTH, getY(), getDirection());
 					}
 					break;
 				case down:
@@ -161,7 +289,7 @@ void Penelope::doSomething() {
 						if (getY() - i * SPRITE_HEIGHT < 0) {
 							break;
 						}
-						m_arena->generateFlames(getX(), getY() - i * SPRITE_HEIGHT);
+						getArena()->generateFlames(getX(), getY() - i * SPRITE_HEIGHT, getDirection());
 					}
 					break;
 				}
@@ -170,9 +298,23 @@ void Penelope::doSomething() {
 				if (mineCount <= 0) {
 					break;
 				}
-				m_arena->generateLandmine(getX(), getY());
+				getArena()->generateLandmine(getX(), getY());
 				mineCount--;
+			} break;
+			case KEY_PRESS_ENTER: {
+				if (vaccineCount <= 0) {
+					break;
+				}
+				else {
+					vaccineCount--;
+					useVaccine();
+				}
+				break;
 			}
+			default: {
+				break;
+			}
+			
 				
 
 			}
@@ -191,7 +333,7 @@ Penelope::~Penelope() {
 
 
 
-Wall::Wall(double start_x, double start_y): Actor(IID_WALL, start_x, start_y) {
+Wall::Wall(double start_x, double start_y, StudentWorld * arena): Actor(IID_WALL, start_x, start_y, arena) {
 
 }
 
@@ -210,12 +352,11 @@ Wall::~Wall() {
 
 
  
-Exit::Exit(double x, double y, StudentWorld * arena) : Actor(IID_EXIT, x, y, 0, 1) {
-	m_arena = arena;
+Exit::Exit(double x, double y, StudentWorld * arena) : Actor(IID_EXIT, x, y, arena, 0, 1) {
 }
 
 void Exit::doSomething() {
-	m_arena->checkExit(this->getX(), this->getY());
+	getArena()->checkExit(this->getX(), this->getY());
 }
 
 
@@ -225,8 +366,7 @@ bool Exit::isTangible() const {
 	return false;
 }
 
-Goodie::Goodie(int imageID, double startX, double startY, StudentWorld * arena, Direction dir, int depth): Actor(imageID, startX, startY, dir, depth) {
-	m_arena = arena;
+Goodie::Goodie(int imageID, double startX, double startY, StudentWorld * arena, Direction dir, int depth): Actor(imageID, startX, startY, arena, dir, depth) {
 }
 
 VaccineGoodie::VaccineGoodie(double startX, double startY, StudentWorld * arena) : Goodie(IID_VACCINE_GOODIE, startX, startY, arena){
@@ -234,7 +374,7 @@ VaccineGoodie::VaccineGoodie(double startX, double startY, StudentWorld * arena)
 }
 
 void VaccineGoodie::doSomething() {
-	if (getArena()->goodieOverlap(this->getX(), this->getY(), this)) {
+	if (getArena()->goodieOverlap(this->getX(), this->getY())) {
 		getArena()->getPenelope()->plusVaccine();
 		die();
 	}
@@ -245,7 +385,7 @@ GasCanGoodie::GasCanGoodie(double startX, double startY, StudentWorld * arena) :
 }
 
 void GasCanGoodie::doSomething() {
-	if (getArena()->goodieOverlap(getX(), getY(), this)) {
+	if (getArena()->goodieOverlap(getX(), getY())) {
 		getArena()->getPenelope()->plusFlame();
 		die();
 	}
@@ -256,19 +396,18 @@ LandmineGoodie::LandmineGoodie(double startX, double startY, StudentWorld * aren
 }
 
 void LandmineGoodie::doSomething() {
-	if (getArena()->goodieOverlap(getX(), getY(), this)) {
+	if (getArena()->goodieOverlap(getX(), getY())) {
 		getArena()->getPenelope()->plusMines();
 		die();
 	}
 }
 
 
-Hazard::Hazard(int imageID, double startX, double startY, StudentWorld * arena) : Actor(imageID, startX, startY) {
-	m_arena = arena;
+Hazard::Hazard(int imageID, double startX, double startY, StudentWorld * arena, Direction dir) : Actor(imageID, startX, startY, arena, dir, 1) {
 	timer = 0;
 }
 
-Flame::Flame(double startX, double startY, StudentWorld * arena) : Hazard(IID_FLAME, startX, startY, arena) {
+Flame::Flame(double startX, double startY, StudentWorld * arena, Direction dir) : Hazard(IID_FLAME, startX, startY, arena, dir) {
 
 }
 
@@ -277,7 +416,7 @@ void Flame::doSomething() {
 		return;
 	}
 	else {
-		getArena()->hazardOverlap(getX(), getY() , this);
+		getArena()->flameOverlap(getX(), getY());
 	}
 }
 
@@ -286,7 +425,7 @@ Pit::Pit(double startX, double startY, StudentWorld * arena) : Hazard(IID_PIT, s
 }
 
 void Pit::doSomething() {
-	getArena()->hazardOverlap(getX(), getY(), this);
+	getArena()->flameOverlap(getX(), getY());
 }
 
 Landmine::Landmine(double startX, double startY, StudentWorld * arena) : Hazard(IID_LANDMINE, startX, startY, arena) {
@@ -298,7 +437,7 @@ void Landmine::BOOM() {
 	getArena()->playSound(SOUND_LANDMINE_EXPLODE);
 	for (double i = getX() - SPRITE_WIDTH; i <= getX() + SPRITE_WIDTH; i+= SPRITE_WIDTH) {
 		for (double j = getY() - SPRITE_HEIGHT; j <= getY() + SPRITE_HEIGHT; j += SPRITE_HEIGHT) {
-			getArena()->generateFlames(i * SPRITE_HEIGHT, j * SPRITE_HEIGHT);
+			getArena()->generateFlames(i, j, up);
 		}
 	}
 	getArena()->generatePit(getX(), getY());
@@ -321,5 +460,16 @@ void Landmine::doSomething() {
 	if (getArena()->mineOverlap(getX(), getY(), this)) {
 		BOOM();
 	}
+}
 
+Vomit::Vomit(double startX, double startY, StudentWorld * arena, Direction dir): Hazard(IID_VOMIT, startX, startY, arena, dir) {
+
+}
+
+
+void Vomit::doSomething() {
+	if (timeUp()) {
+		return;
+	}
+	getArena()->vomitOverlap(getX(), getY(), this);
 }

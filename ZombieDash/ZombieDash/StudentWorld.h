@@ -6,6 +6,7 @@
 #include <vector>
 class Actor;
 class Penelope;
+class Agent;
 
 // Students:  Add code to this file, StudentWorld.cpp, Actor.h, and Actor.cpp
 
@@ -21,14 +22,25 @@ public:
 	}
 	bool canMoveTo(double end_x, double end_y, Actor * character);
 	void checkExit(double curx, double cury);
-	void hazardOverlap(double curx, double cury, Actor * caller);
-	bool goodieOverlap(double curx, double cury, Actor * caller);
+	void flameOverlap(double curx, double cury);
+	bool goodieOverlap(double curx, double cury);
 	bool mineOverlap(double curx, double cury, Actor * caller);
-	bool overlap(double curx, double cury, Actor * caller, Actor * it);
-	bool overlap(double curx, double cury, Actor * it);
-	void generateFlames(double x, double y);
+	void vomitOverlap(double curx, double cury, Actor * caller);
+
+	void generateFlames(double x, double y, int dir);
 	void generateLandmine(double x, double y);
 	void generatePit(double x, double y);
+	void generateVomit(double x, double y, int dir);
+	void generateZombie(double x, double y);
+	void moveCitizen(Agent * thisGuy);
+	bool goAfterHumanIfApplicable(Agent * zombie, double x, double y);
+	bool findCitizens(double x, double y, Actor * caller);
+	void decCitizens() {
+		numCitizens--;
+	}
+	void decZombies() {
+		numZombies--;
+	}
 	~StudentWorld();
 
 private:
@@ -37,6 +49,11 @@ private:
 	Penelope * penelope;
 	bool levelFinished;
 	int level;
+	int numCitizens;
+	int numZombies;
+	double computeNearestDistZombie(double x, double y);
+	bool overlap(double curx, double cury, Actor * it);
+	double computeNearestDistHuman(double x, double y, Actor * human);
 };
 
 #endif // STUDENTWORLD_H_

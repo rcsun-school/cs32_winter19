@@ -3,12 +3,11 @@
 
 #include "GraphObject.h"
 #include "StudentWorld.h"
-class StudentWorld;
 // Students:  Add code to this file, Actor.cpp, StudentWorld.h, and StudentWorld.cpp
 class Actor : public GraphObject {
 	//base class for all actors within game (Penelope, Persons, Zombies, etc.)
 public:
-	Actor(int imageID, double startX, double startY, Direction dir = 0, int depth = 0);
+	Actor(int imageID, double startX, double startY, StudentWorld * arena, Direction dir = 0, int depth = 0);
 	virtual ~Actor();
 	virtual bool alive() const {
 		return isAlive;
@@ -21,89 +20,174 @@ public:
 	virtual void activateByFlame() {
 		return;
 	}
-	virtual int die();
+	virtual bool scaresCitizens() {
+		return false;
+	}
+	virtual void die();
 	virtual int beSaved();
 	virtual bool canBlockFlames() {
 		return true;
 	}
+	virtual bool triggersLandmines() {
+		return true;
+	}
+	StudentWorld * getArena() const{
+		return m_arena;
+	}
+	void getInfected() {
+		m_infected = true;
+	}
+	bool isInfected() const {
+		return m_infected;
+	}
+	void useVaccine() {
+		m_infected = false;
+	}
 private:
 	bool isAlive;
+	StudentWorld * m_arena;
+	bool m_infected;
 };
 
-class Person : public Actor {
+
+class Agent : public Actor {
 public:
-	Person(int imageID, double startX, double startY, int points_saved, int points_killed);
-	virtual ~Person();
-	int die() {
+	Agent(int imageID, double startX, double startY, StudentWorld * arena, int points_killed, int moveSpace);
+	virtual void die() {
 		Actor::die();
-		return POINT_VALUE_KILLED;
+		getArena()->increaseScore(POINT_VALUE_KILLED);
 	}
+	virtual bool move(Direction dir);
+	int getTimer() {
+		time++;
+		return time;
+	}
+	virtual bool paralyzed() {
+		time++;
+		if (time%2 == 0) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+private:
+	int moveSpace;
+	int POINT_VALUE_KILLED;
+	int time;
+};
+class Person : public Agent{
+public:
+	Person(int imageID, double startX, double startY, StudentWorld * arena, int points_saved, int points_killed, int moveSpace);
+	virtual ~Person();
 	bool canBeSaved() const;
 	bool isKillable() const;
 	bool zombieFood() const;
-	bool infected() const;
 	int getInfectionCount() const;
-	void increaseInfection() {
-		infectionCount++;
-	}
-	virtual void beInfected() {
-		this->isInfected = true;
+	bool checkInfection() {
+		if (infectionCount >= 500) {
+			return true;
+		}
+		else {
+			if (Actor::isInfected()) {
+				infectionCount++;
+			}
+			else {
+				infectionCount = 0;
+			}
+			return false;
+		}
 	}
 	bool canBlockFlames() {
 		return false;
 	}
+	int beSaved() {
+		Actor::die();
+		getArena()->playSound(SOUND_CITIZEN_SAVED);
+		getArena()->decCitizens();
+		return POINT_VALUE_SAVED;
+	}
 private: 
-	bool isInfected;
 	int infectionCount;
 	int POINT_VALUE_SAVED;
-	int POINT_VALUE_KILLED;
 };
 
-class Zombie : public Actor {
+
+class Citizen : public Person {
+public: 
+	Citizen(double startX, double startY, StudentWorld * arena);
+	~Citizen() {}
+	void doSomething();
+	void die();
+};
+
+class Zombie : public Agent {
 public:
-	Zombie(double startX, double startY, int points_killed);
+	Zombie(double startX, double startY, int points_killed, StudentWorld * arena);
 	virtual ~Zombie();
-	virtual void vomit();
+
 	bool isKillable() const {
 		return true;
 	}
 	bool canBlockFlames() {
 		return false;
 	}
-	int die() {
-		isAlive = false;
-		return POINT_VALUE_KILLED;
-	};
-
-	bool alive() {
-		return isAlive;
+	void die() {
+		Agent::die();
+		getArena()->playSound(SOUND_ZOMBIE_DIE);
+		getArena()->decZombies();
 	}
+	bool vomit();
+	void setMovementPlan(int spaces) {
+		m_move = spaces;
+	}
+
+	int getMovementPlan() const {
+		return m_move;
+	}
+
+	bool scaresCitizens() {
+		return true;
+	}
+
+	bool move(Direction dir) {
+		if (Agent::move(dir)) {
+			m_move--;
+			return true;
+		}
+		return false;
+		
+	}
+
+
 private:
-	int POINT_VALUE_KILLED;
-	bool isAlive;
+	int m_move;
 };
 
 class DumbZombie : public Zombie {
 public:
-	DumbZombie(double startX, double startY) : Zombie(startX, startY, 1000) {
+	DumbZombie(double startX, double startY, StudentWorld * arena) : Zombie(startX, startY, 1000, arena) {
 
 	}
+	void doSomething();
+};
+
+class SmartZombie : public Zombie {
+public:
+	SmartZombie(double startX, double startY, StudentWorld * arena) : Zombie(startX, startY, 2000, arena) {
+
+	}
+	void doSomething();
 };
 
 class Hazard : public Actor {
 public:
-	Hazard(int imageID, double startX, double startY, StudentWorld * arena);
+	Hazard(int imageID, double startX, double startY, StudentWorld * arena, Direction dir = 0);
 	virtual ~Hazard() {
 
 	}
 	bool isTangible() const {
 		return false;
-	}
-	bool isKillable() const {
-		return false;
-	}
-	StudentWorld * getArena() {
-		return m_arena;
 	}
 	bool timeUp() {
 		if (timer >= 2) {
@@ -124,10 +208,11 @@ public:
 	void incTimer() {
 		timer++;
 	}
+	bool triggersLandmines() {
+		return false;
+	}
 
 private:
-	bool isAlive;
-	StudentWorld * m_arena;
 	int timer;
 	int lifespan;
 
@@ -135,7 +220,7 @@ private:
 
 class Flame : public Hazard {
 public:
-	Flame(double startX, double startY, StudentWorld * arena);
+	Flame(double startX, double startY, StudentWorld * arena, Direction dir);
 	~Flame() {}
 	void doSomething();
 };
@@ -158,7 +243,7 @@ private:
 
 class Vomit : public Hazard {
 public:
-	Vomit(double startX, double startY, StudentWorld * arena);
+	Vomit(double startX, double startY, StudentWorld * arena, Direction dir);
 	~Vomit() {}
 	void doSomething();
 };
@@ -169,7 +254,10 @@ public:
 	~Pit() {};
 	void doSomething();
 	bool canBlockFlames() {
-		return true;
+		return false;
+	}
+	void die() {
+		return;
 	}
 };
 
@@ -183,11 +271,14 @@ public:
 	bool isKillable() const {
 		return true;
 	}
-	StudentWorld * getArena() const {
-		return m_arena;
+	bool triggersLandmines() {
+		return false;
+	}
+
+	bool canBlockFlames() {
+		return false;
 	}
 private:
-	StudentWorld * m_arena;
 };
 
 class VaccineGoodie : public Goodie {
@@ -234,25 +325,24 @@ public:
 	void plusVaccine() {
 		vaccineCount++;
 	}
-	int die() {
-		m_arena->playSound(SOUND_PLAYER_DIE);
+	void die() {
+		getArena()->playSound(SOUND_PLAYER_DIE);
 		Actor::die();
-		return 0;
+		return;
 	}
 private:
 	int flameCount;
 	int mineCount;
 	int vaccineCount;
-	StudentWorld * m_arena;
 
 
 };
 
 class Wall : public Actor {
 public: 
-	Wall(double x, double y);
-	int die() {
-		return 0;
+	Wall(double x, double y, StudentWorld * arena);
+	void die() {
+		return;
 	}
 	~Wall();
 	void doSomething();
@@ -264,11 +354,10 @@ public:
 	~Exit();
 	void doSomething();
 	bool isTangible() const;
-	int die() {
-		return 0;
+	void die() {
+		return;
 	}
 private:
-	StudentWorld * m_arena;
 };
 
 
