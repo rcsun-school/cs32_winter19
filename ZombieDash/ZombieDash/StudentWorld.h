@@ -8,7 +8,8 @@ class Actor;
 class Penelope;
 class Agent;
 
-// Students:  Add code to this file, StudentWorld.cpp, Actor.h, and Actor.cpp
+//Class StudentWorld
+//Creates the game world and facilitates the creation, deletion, and interactions of game objects with the game and other objects
 
 class StudentWorld : public GameWorld
 {
@@ -22,11 +23,11 @@ public:
 	}
 	bool canMoveTo(double end_x, double end_y, Actor * character);
 	void checkExit(double curx, double cury);
-	void flameOverlap(double curx, double cury);
+	void hazardOverlap(double curx, double cury);
 	bool goodieOverlap(double curx, double cury);
 	bool mineOverlap(double curx, double cury, Actor * caller);
-	void vomitOverlap(double curx, double cury, Actor * caller);
-
+	void vomitOverlap(double curx, double cury);
+	void generateVaccine(double x, double y);
 	void generateFlames(double x, double y, int dir);
 	void generateLandmine(double x, double y);
 	void generatePit(double x, double y);

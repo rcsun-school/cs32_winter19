@@ -11,6 +11,7 @@
 #include <cmath>
 using namespace std;
 
+
 GameWorld* createStudentWorld(string assetPath)
 {
 	return new StudentWorld(assetPath);
@@ -28,14 +29,15 @@ StudentWorld::~StudentWorld() {
 
 int StudentWorld::init()
 {
-	/*1. Initialize the data structures used to keep track of your game’s world.
-		2. Allocate and insert a Penelope object into the game world as specified in the
-		current level’s data file.
-		3. Allocate and insert various wall, pit, goodie, zombie, and exit objects into the
-		game world as specified in the current level’s data file. */
+	/*StudentWorld::init() 
+		Identify and load the appropriate level file if applicable
+		if no level file found or discovered file does not meet requirements of a proper level file return immediately and notify the GameController
+		else initialize the level's Penelope and all existing actors as specified in the level file and return GWSTATUS_CONTINUE_GAME
+	*/
+
 	ostringstream filename;
 	levelFinished = false;
-	filename.fill('0');
+    filename.fill('0');
 	filename << "level" << setw(2) << getLevel() << ".txt";
 	Level lev(assetPath());
 	Level::LoadResult result = lev.loadLevel(filename.str());
@@ -125,9 +127,8 @@ int StudentWorld::init()
 
 int StudentWorld::move()
 {
-    // This code is here merely to allow the game to build, run, and terminate after you hit enter.
-    // Notice that the return value GWSTATUS_PLAYER_DIED will cause our framework to end the current level.
-	ostringstream oss;
+	//Manipulate the display at the top of the game screen
+	ostringstream oss; 
 	oss.fill('0');
 	if (getScore() >= 0) {
 		oss << "Score: " << setw(6) << getScore();
@@ -139,6 +140,10 @@ int StudentWorld::move()
 	oss << setw(9) << "Level: " << getLevel() << setw(9) << "Lives: " << getLives() << setw(12) << "Vaccines: " << penelope->getVaccines() << setw(10) << "Flames: " << penelope->getFlame()
 		<< setw(9) << "Mines: " << penelope->getMines() << setw(12) << "Infected: " << penelope->getInfectionCount();
 	setGameStatText(oss.str());
+
+
+	//Traverse the array of existing characters, instructing each to do something.
+	//if Penelope dies as a consequence of an action or has completed the level, end the level immediately and appropriately
 	vector <Actor*>::iterator it = allChar.begin();
 	for (; it != allChar.end(); it++) {
 		if ((*it)->alive()) { //checks if actor is alive before calling doSomething()
@@ -151,10 +156,14 @@ int StudentWorld::move()
 			return GWSTATUS_FINISHED_LEVEL;
 		}
 	}
+
+	//For every new graph object created during the past tick, add them to the array of existing characters.
 		for (vector<Actor*>::iterator n = newChar.begin(); n != newChar.end();) {
 			allChar.push_back(*n);
 			n = newChar.erase(n);
 		}
+
+	//remove dead actors from the container of existing characters.
 		for (it = allChar.begin(); it != allChar.end(); it++) {
 		if (!((*it)->alive())) {
 			Actor * killme = *it;
@@ -175,6 +184,11 @@ void StudentWorld::cleanUp()
 		delete killme;
 	}
 
+	while (!newChar.empty()) {
+		Actor * killme = *i;
+		i = allChar.erase(i);
+		delete killme;
+	}
 	if (levelFinished) {
 		level++;
 	}
@@ -185,7 +199,9 @@ void StudentWorld::cleanUp()
 
 
 bool StudentWorld::canMoveTo(double end_x, double end_y, Actor * character) {
-	//the four corners of the moving actor's bounding box cannot enter the bounding box of any other tangible actors on the field. 
+	//neither of the four corners of the moving actor's bounding box cannot enter the bounding box of any other tangible actors on the field. 
+	//if a movement to destination (end_x, end_y) would cause an actor's bounding box to intersect with another actor's bounding box, return false
+	//else return true
 	for (vector <Actor *>::iterator i = allChar.begin(); i != allChar.end(); i++) {
 		if ((*i)->isTangible() && *i != character) {
 			if ((end_x >= (*i)->getX() && end_x <= (*i)->getX() + SPRITE_WIDTH - 1 && end_y >= (*i)->getY() && end_y <= (*i)->getY() + SPRITE_HEIGHT - 1)
@@ -202,15 +218,18 @@ bool StudentWorld::canMoveTo(double end_x, double end_y, Actor * character) {
 }
 
 void StudentWorld::checkExit(double curx, double cury) {
+	//for every actor in game detected overlapping with the exit object, check if they can exit through the exit
+	//if so, notify the citizens that they've been saved, and if Penelope leaves the exit, notify this StudentWorld object
 	for (vector<Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
 		if (overlap(curx, cury, *it)) {
 			if ((*it)->canBeSaved()) {
 				if ((*it) == this->penelope && numCitizens == 0) {
+					playSound(SOUND_LEVEL_FINISHED);
 					playSound(SOUND_CITIZEN_SAVED);
 					levelFinished = true;
 				}
 				else if (*it != penelope) {
-					increaseScore((*it)->beSaved());
+					(*it)->beSaved();
 				}
 				else {
 					continue;
@@ -223,11 +242,14 @@ void StudentWorld::checkExit(double curx, double cury) {
 
 
 bool StudentWorld::overlap(double curx, double cury, Actor * it) {
+	//return if current set of coordinates is within a Euclidian distance of 10 from the Actor pointer
 	return ((curx - it->getX()) * (curx - it->getX()) + (cury - it->getY()) * (cury - it->getY()) <= 100);
 }
 
 
-void StudentWorld::flameOverlap(double curx, double cury) {
+void StudentWorld::hazardOverlap(double curx, double cury) {
+	//out of every actor on the game world, check for overlap
+	//if so, either explode landmines or kill people/zombies as appropriate
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
 		if (overlap(curx, cury, *it)) {
 			(*it)->activateByFlame();
@@ -239,17 +261,28 @@ void StudentWorld::flameOverlap(double curx, double cury) {
 }
 
 
-void StudentWorld::vomitOverlap(double curx, double cury, Actor * caller) {
+void StudentWorld::vomitOverlap(double curx, double cury) {
+	//out of every actor on the game world, check for overlap with the vomit object
+	//if an overlapping actor can be infected, infect them
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
 		if (overlap(curx, cury, *it)) {
 			if ((*it)->zombieFood()) {
-				(*it)->getInfected();
+				if (!(*it)->isInfected()) {
+					(*it)->getInfected();
+					if ((*it) != penelope) {
+						playSound(SOUND_CITIZEN_INFECTED);
+					}
+				}
+				continue;
+				
 			}
 		}
 	}
 }
 
 bool StudentWorld::findCitizens(double x, double y, Actor * caller) {
+	//if a citizen or Penelope is detected overlapping with an adjacent location to a zombie, calculate a 1 out of 3 chance to vomit
+	//and vomit if appropriate, which generally it isn't. Returns true if Zombie has vomitted, false otherwise
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
 		if (overlap(x, y, *it) && (*it)->zombieFood() && randInt(1, 3) == 1) {
 			generateVomit(x, y, caller->getDirection());
@@ -260,6 +293,7 @@ bool StudentWorld::findCitizens(double x, double y, Actor * caller) {
 }
 
 bool StudentWorld::goodieOverlap(double curx, double cury) {
+	//detect overlapping actors in the vicinity of a goodie object, if so return true, else return false
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
 		if (overlap(curx, cury, *it) && *it == penelope) {
 			increaseScore(50);
@@ -272,6 +306,7 @@ bool StudentWorld::goodieOverlap(double curx, double cury) {
 
 
 bool StudentWorld::mineOverlap(double curx, double cury, Actor * caller) {
+	//detect overlapping actors in the vicinity of a landmine object that may trigger the landmine
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
 		if (overlap(curx, cury, *it) && *it != caller && (*it)->triggersLandmines()) {
 			return true;
@@ -281,6 +316,7 @@ bool StudentWorld::mineOverlap(double curx, double cury, Actor * caller) {
 }
 
 void StudentWorld::generateFlames(double x, double y, int dir) {
+	//create a new flame object at designated coordinates if it cannot be blocked by a local object
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
 		if (overlap(x, y, *it) && (*it)->canBlockFlames()) {
 			return;
@@ -291,23 +327,35 @@ void StudentWorld::generateFlames(double x, double y, int dir) {
 }
 
 void StudentWorld::generateLandmine(double x, double y) {
+	//create a new landmine object at designated coordinates
 	Actor * l = new Landmine(x, y, this);
 	newChar.push_back(l);
 }
 
 void StudentWorld::generatePit(double x, double y) {
+	//create a new pit object at designated coordinates
 	Actor * p = new Pit(x, y, this);
 	newChar.push_back(p);
 }
 
+void StudentWorld::generateVaccine(double x, double y) {
+	//create a new VaccineGoodie object at designated coordinates, unless there's a wall there
+	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end() || (overlap(x, y, *it) && (*it)->canBlockFlames() && (*it)->isTangible()); it++) {
+		return;
+	}
+	Actor * v = new VaccineGoodie(x, y, this);
+	newChar.push_back(v);
+}
 
 void StudentWorld::generateVomit(double x, double y, int dir) {
+	//creates a new Vomit object at designated coordinates.
 	Actor * v = new Vomit(x, y, this, dir);
 	newChar.push_back(v);
 	playSound(SOUND_ZOMBIE_VOMIT);
 }
 
 void StudentWorld::generateZombie(double x, double y) {
+	//creates a new Zombie object at a turned Citizen's previous location
 	int chance = randInt(1, 10);
 	if (chance > 7) {
 		Actor * z = new SmartZombie(x, y, this);
@@ -322,9 +370,13 @@ void StudentWorld::generateZombie(double x, double y) {
 
 
 void StudentWorld::moveCitizen(Agent * thisGuy) {
+	//If Penelope is closer than the nearest Zombie, the Citizen tries to get closer to Penelope
+	//or the Citizen will run away from the zombie
+	//or the citzen just stands there
 	double distP = sqrt(pow(thisGuy->getX() - penelope->getX(), 2) + pow(thisGuy->getY() - penelope->getY(), 2));
 	double distZ = computeNearestDistZombie(thisGuy->getX(), thisGuy->getY());
 	if (distP < distZ && distP <= 80) {
+		//compute best way of reaching Penelope
 		if (penelope->getX() == thisGuy->getX()) {
 			if (penelope->getY() > thisGuy->getY()) {
 				if (thisGuy->move(90)) {
@@ -373,9 +425,12 @@ void StudentWorld::moveCitizen(Agent * thisGuy) {
 		}
 	}
 	else if (distZ <= 80) {
+		//RUN AWAY FROM ZOMBIES
 		Direction bestDirection = -1;
 		double bestSpot = distZ;
 		double posNearbyZombie;
+		//For each of the four spots the Citizen could possibly move to, choose the spot farthest away from any zombie
+		//if all four alternatives get the Citizen closer, the Citizen will stand still
 		if (canMoveTo(thisGuy->getX() + 2, thisGuy->getY(), thisGuy)) {
 			posNearbyZombie = computeNearestDistZombie(thisGuy->getX() + 2, thisGuy->getY());
 			if (posNearbyZombie > bestSpot) {
@@ -407,7 +462,7 @@ void StudentWorld::moveCitizen(Agent * thisGuy) {
 		if (bestDirection != -1) {
 			thisGuy->move(bestDirection);
 		}
-		
+		return;
 	}
 	else {
 		return;
@@ -448,26 +503,26 @@ bool StudentWorld::goAfterHumanIfApplicable(Agent * zombie, double x, double y) 
 		}
 		else {
 			if (human->getY() > zombie->getY()) {
-				if (canMoveTo(x + 1, y, zombie)) {
-					zombie->setDirection(0);
-					return true;
-				}
-			}
-			if (human->getX() > zombie->getX()) {
 				if (canMoveTo(x, y + 1, zombie)) {
 					zombie->setDirection(90);
 					return true;
 				}
 			}
+			if (human->getX() > zombie->getX()) {
+				if (canMoveTo(x + 1, y, zombie)) {
+					zombie->setDirection(0);
+					return true;
+				}
+			}
 			if (human->getY() < zombie->getY()) {
-				if (canMoveTo(x - 1, y, zombie)) {
-					zombie->setDirection(180);
+				if (canMoveTo(x, y - 1, zombie)) {
+					zombie->setDirection(270);
 					return true;
 				}
 			}
 			if (human->getX() < zombie->getX()) {
-				if (canMoveTo(x, y - 1, zombie)) {
-					zombie->setDirection(270);
+				if (canMoveTo(x - 1, y, zombie)) {
+					zombie->setDirection(180);
 					return true;
 				}
 			}
@@ -490,11 +545,10 @@ double StudentWorld::computeNearestDistZombie(double x, double y) {
 	return distZ;
 }
 
+
+//locates nearest human and returns euclidian distance plus sets parameter human to this actors
 double StudentWorld::computeNearestDistHuman(double x, double y, Actor * human) {
-	if (numCitizens == 0) {
-		return VIEW_HEIGHT * VIEW_WIDTH; //need some absurdly large number so our nonexistent zombie value does not affect calculations
-	}
-	double distH = VIEW_HEIGHT * VIEW_WIDTH;
+	double distH = VIEW_HEIGHT * VIEW_WIDTH; //this value will be eventually replaced with distance of closest Penelope/Citizen
 	for (vector <Actor *>::iterator it = allChar.begin(); it != allChar.end(); it++) {
 		if ((*it)->zombieFood() && sqrt(pow(x - (*it)->getX(), 2) + pow(y - (*it)->getY(), 2)) < distH) {
 			distH = sqrt(pow(x - (*it)->getX(), 2) + pow(y - (*it)->getY(), 2));
