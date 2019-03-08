@@ -1,0 +1,5 @@
+﻿  Sorts.cpp
+c:\users\ryans\source\repos\cs32_winter19\sorts.cpp\sorts.cpp\sorts.cpp(144): warning C4018: '<=': signed/unsigned mismatch
+c:\users\ryans\source\repos\cs32_winter19\sorts.cpp\sorts.cpp\sorts.cpp(260): warning C4018: '<': signed/unsigned mismatch
+c:\users\ryans\source\repos\cs32_winter19\sorts.cpp\sorts.cpp\sorts.cpp(270): warning C4018: '<': signed/unsigned mismatch
+  sorts.cpp.vcxproj -> C:\Users\ryans\source\repos\cs32_winter19\sorts.cpp\Debug\sorts.cpp.exe

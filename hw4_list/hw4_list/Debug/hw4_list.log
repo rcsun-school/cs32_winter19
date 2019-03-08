@@ -1,0 +1,5 @@
+﻿  list.cpp
+c:\users\ryans\source\repos\cs32_winter19\hw4_list\hw4_list\list.cpp(40): warning C4018: '<': signed/unsigned mismatch
+c:\users\ryans\source\repos\cs32_winter19\hw4_list\hw4_list\list.cpp(52): warning C4018: '<': signed/unsigned mismatch
+c:\users\ryans\source\repos\cs32_winter19\hw4_list\hw4_list\list.cpp(62): warning C4018: '<': signed/unsigned mismatch
+  hw4_list.vcxproj -> C:\Users\ryans\source\repos\cs32_winter19\hw4_list\Debug\hw4_list.exe
