@@ -1,4 +1,5 @@
 #include "provided.h"
+#include "Trie.h"
 #include <string>
 #include <vector>
 #include <iostream>
@@ -14,9 +15,17 @@ public:
     bool findGenomesWithThisDNA(const string& fragment, int minimumLength, bool exactMatchOnly, vector<DNAMatch>& matches) const;
     bool findRelatedGenomes(const Genome& query, int fragmentMatchLength, bool exactMatchOnly, double matchPercentThreshold, vector<GenomeMatch>& results) const;
 private:
+	int m_minlength;
+	Trie<Genome> m_structure;
+
+	struct GenomeData {
+	public:
+		string name;
+		string position;
+	};
 };
 
-GenomeMatcherImpl::GenomeMatcherImpl(int minSearchLength)
+GenomeMatcherImpl::GenomeMatcherImpl(int minSearchLength): m_minlength(minSearchLength)
 {
     // This compiles, but may not be correct
 }
@@ -28,7 +37,7 @@ void GenomeMatcherImpl::addGenome(const Genome& genome)
 
 int GenomeMatcherImpl::minimumSearchLength() const
 {
-    return 0;  // This compiles, but may not be correct
+	return m_minlength;
 }
 
 bool GenomeMatcherImpl::findGenomesWithThisDNA(const string& fragment, int minimumLength, bool exactMatchOnly, vector<DNAMatch>& matches) const

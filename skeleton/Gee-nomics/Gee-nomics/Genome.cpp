@@ -14,31 +14,73 @@ public:
     string name() const;
     bool extract(int position, int length, string& fragment) const;
 private:
+	string m_name;
+	string m_sequence;
 };
 
-GenomeImpl::GenomeImpl(const string& nm, const string& sequence)
+GenomeImpl::GenomeImpl(const string& nm, const string& sequence): m_name(nm), m_sequence(sequence)
 {
     // This compiles, but may not be correct
 }
 
 bool GenomeImpl::load(istream& genomeSource, vector<Genome>& genomes) 
 {
-    return false;  // This compiles, but may not be correct
+	string s;
+	vector<string> names;
+	vector <string> sequence;
+	string temp;
+	while (getline(genomeSource, s)) {
+		if (s.size() > 80 || s.size() < 1) {
+			return false;
+		}
+		if (s[0] == '>') {
+			names.push_back(s.substr(1, s.size() - 1));
+			if (temp.size() >= 0) {
+				string undercase = "";
+				for (int i = 0; i < temp.size(); i++) {
+					char a = toupper(temp[i]);
+					if (a != 'A' && a != 'T' && a != 'G' && a != 'C' && a != 'N') {
+						return false;
+					}
+					undercase = a;
+				}
+				sequence.push_back(undercase);
+				temp = "";
+			}
+		}
+		else {
+			temp += s;
+		}
+	}
+	sequence.push_back(temp);
+	for (int i = 0; i < names.size(); i++) {
+		Genome * g = new Genome(names[i], sequence[i]);
+		genomes.push_back(*g);
+	}
+	delete [] &names;
+	delete [] &sequence;
+
+
+		// This compiles, but may not be correct
 }
 
 int GenomeImpl::length() const
 {
-    return 0;  // This compiles, but may not be correct
+    return m_sequence.size();  // This compiles, but may not be correct
 }
 
 string GenomeImpl::name() const
 {
-    return "";  // This compiles, but may not be correct
+    return m_name;  // This compiles, but may not be correct
 }
 
 bool GenomeImpl::extract(int position, int length, string& fragment) const
 {
-    return false;  // This compiles, but may not be correct
+	if (position + length > this->length()) {
+		return false;
+	}
+	fragment = m_sequence.substr(position, length);
+	return true;
 }
 
 //******************** Genome functions ************************************
